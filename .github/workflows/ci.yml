@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install
+        # Runtime deps plus the test tools only. torch is deliberately excluded:
+        # the tests substitute the models, so nothing here needs it. If a test
+        # ever starts pulling in torch, that is a regression worth failing on.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest==8.3.4 ruff==0.9.2
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Test
+        run: pytest -q
+
+      - name: Assert the runtime stays PyTorch-free
+        shell: bash
+        run: |
+          if pip show torch > /dev/null 2>&1; then
+            echo "::error::torch was pulled into the runtime dependency set"
+            exit 1
+          fi
+          echo "runtime is torch-free"

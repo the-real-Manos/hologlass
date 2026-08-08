@@ -1,0 +1,40 @@
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Audio: never commit recordings. Test fixtures are the one exception.
+*.wav
+*.mp3
+*.flac
+*.m4a
+!tests/fixtures/*.wav
+
+# Model weights and conversion output (fetched by scripts/fetch_models.py)
+models/
+*.bin
+*.onnx
+*.gguf
+.cache/
+
+# Benchmark output
+bench/results/*.json
+bench/results/*.csv
+
+# Environment / secrets
+.env
+.env.*
+
+# Editor / OS
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini

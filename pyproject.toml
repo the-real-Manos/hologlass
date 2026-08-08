@@ -1,0 +1,33 @@
+[project]
+name = "hologlass"
+version = "0.1.0"
+description = "Fully on-device real-time speech translation for a heads-up display. No audio leaves the machine."
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # import sorting
+    "UP",  # pyupgrade
+    "B",   # bugbear
+    "SIM", # simplify
+]
+ignore = [
+    "E501", # line length is handled by the formatter
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# cacheprovider is disabled: the cache directory is not reliably writable on
+# this Windows checkout and the warning drowns real output.
+addopts = "-q --strict-markers -p no:cacheprovider"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "slow: requires model download or real inference",
+    "audio: requires a physical microphone",
+]

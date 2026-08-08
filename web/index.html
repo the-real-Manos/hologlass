@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hologlass</title>
+<style>
+  :root {
+    --bg: #05070a;
+    --hud: #6ff2c8;
+    --hud-dim: #2d7f6a;
+    --source: #7a8b99;
+    --warn: #f2a56f;
+    --err: #f26f6f;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    color: var(--hud);
+    font-family: "SF Mono", "Cascadia Mono", Consolas, "Roboto Mono", monospace;
+    /* Faint vignette so the caption area reads as a projected lens rather than
+       a document. */
+    background-image: radial-gradient(ellipse at 50% 55%, #0d1520 0%, #05070a 70%);
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.9rem 1.25rem;
+    border-bottom: 1px solid #142029;
+    flex-wrap: wrap;
+  }
+
+  .brand {
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    color: var(--hud);
+  }
+
+  .brand span { color: var(--hud-dim); }
+
+  select, button {
+    font: inherit;
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+    background: #0c141c;
+    color: var(--hud);
+    border: 1px solid #1d2c38;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+  button.primary { border-color: var(--hud-dim); }
+  button:not(:disabled):hover { border-color: var(--hud); }
+
+  .spacer { flex: 1; }
+
+  select#device { max-width: 15rem; }
+
+  /* Input level meter. The whole point is that a dead microphone is obvious at
+     a glance, so the bar is always visible rather than appearing on signal. */
+  .meter {
+    position: relative;
+    width: 110px;
+    height: 8px;
+    background: #0c141c;
+    border: 1px solid #1d2c38;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .meter-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--hud-dim), var(--hud) 70%, var(--warn));
+    transition: width 0.08s linear;
+  }
+
+  /* Roughly where the VAD starts finding speech plausible. Below this line,
+     nothing will ever be transcribed. */
+  .meter-mark {
+    position: absolute;
+    top: 0; bottom: 0;
+    left: 18%;
+    width: 1px;
+    background: #35505f;
+  }
+
+  .meter-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.06em;
+    color: var(--source);
+    min-width: 4.5rem;
+  }
+
+  .meter-label.hot { color: var(--hud); }
+  .meter-label.silent { color: var(--err); }
+
+  .meter-fill.vad {
+    background: linear-gradient(90deg, #3a5f8a, #7fb2ff 80%);
+    transition: width 0.08s linear;
+  }
+
+  /* The speech threshold. Signal to the left of this line is never transcribed,
+     however loud it is. */
+  .meter-mark.vad-mark { left: 50%; background: #6ff2c8; }
+
+  .meter-label.speech { color: #7fb2ff; }
+
+  .status {
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--source);
+  }
+
+  .status.live { color: var(--hud); }
+  .status.error { color: var(--err); }
+
+  .dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    margin-right: 0.45rem;
+    background: #2c3a45;
+    vertical-align: middle;
+  }
+
+  .status.live .dot { background: var(--hud); animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+  /* The caption area is bottom-anchored: new text rises from the bottom edge the
+     way it would in a real heads-up display, instead of scrolling downward. */
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 2rem clamp(1rem, 6vw, 6rem) 3.5rem;
+    gap: 1.1rem;
+    overflow: hidden;
+  }
+
+  .line { animation: rise 0.25s ease-out; }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .line .source {
+    font-size: clamp(0.75rem, 1.4vw, 0.95rem);
+    color: var(--source);
+    margin-bottom: 0.3rem;
+    font-style: italic;
+  }
+
+  .line .target {
+    font-size: clamp(1.3rem, 3.4vw, 2.4rem);
+    line-height: 1.28;
+    font-weight: 600;
+    text-shadow: 0 0 22px rgba(111, 242, 200, 0.22);
+  }
+
+  /* Older lines recede so the newest caption always dominates. */
+  .line[data-age="1"] { opacity: 0.45; }
+  .line[data-age="2"] { opacity: 0.22; }
+  .line[data-age="3"] { opacity: 0.1; }
+
+  .line.interim .target { color: var(--hud-dim); font-weight: 500; }
+  .line.interim .target::after {
+    content: "▋";
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .hint {
+    color: var(--source);
+    font-size: 0.9rem;
+    text-align: center;
+    padding-bottom: 2rem;
+  }
+
+  footer {
+    display: flex;
+    gap: 1.5rem;
+    padding: 0.6rem 1.25rem;
+    border-top: 1px solid #142029;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    color: var(--source);
+    flex-wrap: wrap;
+  }
+
+  footer b { color: var(--hud-dim); font-weight: 600; }
+  .privacy { margin-left: auto; }
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">Holo<span>glass</span></div>
+    <select id="language" aria-label="Source language"></select>
+    <select id="device" aria-label="Microphone" title="Input device"></select>
+    <button id="test">Test mic</button>
+    <button id="start" class="primary">Start</button>
+    <button id="stop" disabled>Stop</button>
+
+    <div class="meter" title="Input level (is the mic producing signal?)">
+      <div class="meter-fill" id="meterFill"></div>
+      <div class="meter-mark"></div>
+    </div>
+    <span class="meter-label" id="meterLabel">—</span>
+
+    <div class="meter" title="Speech probability (does the VAD think this is voice?)">
+      <div class="meter-fill vad" id="vadFill"></div>
+      <div class="meter-mark vad-mark"></div>
+    </div>
+    <span class="meter-label" id="vadLabel">—</span>
+
+    <div class="spacer"></div>
+    <div class="status" id="status"><span class="dot"></span><span id="statusText">connecting</span></div>
+  </header>
+
+  <main id="captions">
+    <div class="hint" id="hint">Press Start and speak. Everything runs on this machine.</div>
+  </main>
+
+  <footer>
+    <div>INPUT <b id="rate">—</b></div>
+    <div>ASR <b id="asrName">—</b></div>
+    <div>MT <b id="mtName">—</b></div>
+    <div>LATENCY <b id="latency">—</b></div>
+    <div>RTF <b id="rtf">—</b></div>
+    <div class="privacy">100% ON-DEVICE · NO AUDIO LEAVES THIS MACHINE</div>
+  </footer>
+
+<script>
+(() => {
+  "use strict";
+
+  const MAX_LINES = 4;
+
+  const el = {
+    language: document.getElementById("language"),
+    device: document.getElementById("device"),
+    test: document.getElementById("test"),
+    start: document.getElementById("start"),
+    stop: document.getElementById("stop"),
+    meterFill: document.getElementById("meterFill"),
+    meterLabel: document.getElementById("meterLabel"),
+    vadFill: document.getElementById("vadFill"),
+    vadLabel: document.getElementById("vadLabel"),
+    status: document.getElementById("status"),
+    statusText: document.getElementById("statusText"),
+    captions: document.getElementById("captions"),
+    hint: document.getElementById("hint"),
+    rate: document.getElementById("rate"),
+    asrName: document.getElementById("asrName"),
+    mtName: document.getElementById("mtName"),
+    latency: document.getElementById("latency"),
+    rtf: document.getElementById("rtf"),
+  };
+
+  let socket = null;
+
+  // Every caption is owned by its utterance id, and any later event for that id
+  // rewrites it in place. This is what makes both refinement paths work: interim
+  // results sharpening as you speak, and a final result being amended when a
+  // pause turns out to have been a breath rather than the end of a sentence.
+  const lines = new Map();
+
+  function setStatus(text, kind = "") {
+    el.statusText.textContent = text;
+    el.status.className = "status" + (kind ? " " + kind : "");
+  }
+
+  // Peak is reported linearly, but perceived loudness is not. A dB scale makes
+  // quiet-but-present signal visible instead of pinning the bar near zero.
+  function renderLevel(peak) {
+    const db = peak > 0 ? 20 * Math.log10(peak) : -100;
+    const fraction = Math.max(0, Math.min(1, (db + 60) / 60));  // -60 dB .. 0 dB
+    el.meterFill.style.width = (fraction * 100).toFixed(1) + "%";
+
+    if (peak < 0.0005) {
+      el.meterLabel.textContent = "SILENT";
+      el.meterLabel.className = "meter-label silent";
+    } else {
+      el.meterLabel.textContent = db.toFixed(0) + " dB";
+      el.meterLabel.className = "meter-label" + (db > -40 ? " hot" : "");
+    }
+  }
+
+  function renderVad(probability, speaking) {
+    if (probability === undefined) return;
+    el.vadFill.style.width = (probability * 100).toFixed(0) + "%";
+    el.vadLabel.textContent = "VAD " + probability.toFixed(2);
+    el.vadLabel.className = "meter-label" + (speaking ? " speech" : "");
+  }
+
+  function resetLevel() {
+    el.meterFill.style.width = "0%";
+    el.meterLabel.textContent = "—";
+    el.meterLabel.className = "meter-label";
+    el.vadFill.style.width = "0%";
+    el.vadLabel.textContent = "—";
+    el.vadLabel.className = "meter-label";
+  }
+
+  function ageLines() {
+    const rendered = [...el.captions.querySelectorAll(".line")].reverse();
+    rendered.forEach((line, index) => {
+      if (index === 0) line.removeAttribute("data-age");
+      else line.setAttribute("data-age", String(Math.min(index, 3)));
+    });
+
+    while (el.captions.querySelectorAll(".line").length > MAX_LINES) {
+      const oldest = el.captions.querySelector(".line");
+      // Drop the map entry too, or a later amendment would resurrect a caption
+      // that is no longer on screen.
+      lines.delete(Number(oldest.dataset.utterance));
+      oldest.remove();
+    }
+  }
+
+  function lineFor(utteranceId) {
+    let line = lines.get(utteranceId);
+    if (line) return line;
+
+    line = document.createElement("div");
+    line.className = "line";
+    line.dataset.utterance = String(utteranceId);
+    line.innerHTML = '<div class="source"></div><div class="target"></div>';
+    el.captions.appendChild(line);
+    lines.set(utteranceId, line);
+    return line;
+  }
+
+  function render(event) {
+    el.hint.style.display = "none";
+
+    const line = lineFor(event.utterance_id);
+    line.classList.toggle("interim", event.kind !== "final");
+
+    line.querySelector(".source").textContent = event.source_text;
+    line.querySelector(".target").textContent = event.target_text || event.source_text;
+    ageLines();
+
+    const t = event.timings || {};
+    el.latency.textContent = `${Math.round(t.total_ms)} ms  (vad ${Math.round(t.vad_ms)} · asr ${Math.round(t.asr_ms)} · mt ${Math.round(t.mt_ms)})`;
+    el.rtf.textContent = event.real_time_factor.toFixed(2) + "x";
+  }
+
+  function handle(message) {
+    switch (message.type) {
+      case "ready":
+        el.language.innerHTML = "";
+        for (const name of message.languages) {
+          const option = document.createElement("option");
+          option.value = option.textContent = name;
+          el.language.appendChild(option);
+        }
+
+        el.device.innerHTML = "";
+        for (const device of message.devices || []) {
+          const option = document.createElement("option");
+          option.value = String(device.index);
+          option.textContent = device.label + (device.is_default ? "  ·  default" : "");
+          if (device.is_default) option.selected = true;
+          el.device.appendChild(option);
+        }
+
+        setStatus("idle");
+        el.start.disabled = false;
+        el.test.disabled = false;
+        break;
+
+      case "status":
+        if (message.state === "loading") setStatus("loading models");
+
+        if (message.state === "listening" || message.state === "monitoring") {
+          const monitoring = message.state === "monitoring";
+          setStatus(monitoring ? "mic test" : "listening", "live");
+          el.start.disabled = !monitoring;
+          el.test.disabled = true;
+          el.stop.disabled = false;
+          el.device.disabled = true;
+          if (message.asr) el.asrName.textContent = message.asr;
+          if (message.mt) el.mtName.textContent = message.mt;
+          if (message.device_rate) {
+            el.rate.textContent = message.device_rate + " Hz"
+              + (message.resampling ? " → 16k" : "");
+          }
+        }
+
+        if (message.state === "stopped") {
+          setStatus("idle");
+          el.start.disabled = false;
+          el.test.disabled = false;
+          el.stop.disabled = true;
+          el.device.disabled = false;
+          resetLevel();
+          lines.clear();
+        }
+        break;
+
+      case "level":
+        renderLevel(message.peak);
+        renderVad(message.vad, message.speaking);
+        break;
+
+      case "translation":
+        render(message);
+        break;
+
+      case "error":
+        setStatus(message.message, "error");
+        el.start.disabled = false;
+        el.test.disabled = false;
+        el.stop.disabled = true;
+        el.device.disabled = false;
+        break;
+    }
+  }
+
+  function connect() {
+    const protocol = location.protocol === "https:" ? "wss" : "ws";
+    socket = new WebSocket(`${protocol}://${location.host}/ws`);
+
+    socket.onmessage = (e) => handle(JSON.parse(e.data));
+    socket.onclose = () => {
+      setStatus("disconnected", "error");
+      el.start.disabled = true;
+      el.test.disabled = true;
+      el.stop.disabled = true;
+      resetLevel();
+      setTimeout(connect, 2000);
+    };
+    socket.onerror = () => setStatus("connection error", "error");
+  }
+
+  el.test.onclick = () => {
+    socket?.send(JSON.stringify({ action: "monitor", device: el.device.value }));
+    el.test.disabled = true;
+  };
+
+  el.start.onclick = () => {
+    socket?.send(JSON.stringify({
+      action: "start",
+      language: el.language.value,
+      device: el.device.value,
+    }));
+    el.start.disabled = true;
+  };
+
+  el.stop.onclick = () => {
+    socket?.send(JSON.stringify({ action: "stop" }));
+    el.stop.disabled = true;
+  };
+
+  el.start.disabled = true;
+  el.test.disabled = true;
+  connect();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+# Runtime dependencies.
+# Deliberately excludes PyTorch: inference runs on CTranslate2 + ONNX Runtime.
+# See requirements-dev.txt for the model-conversion and testing toolchain.
+
+# --- Speech recognition (CTranslate2 backend, int8 quantized) ---
+faster-whisper==1.1.1
+
+# --- Machine translation (CTranslate2 Marian, int8 quantized) ---
+ctranslate2==4.5.0
+# transformers is used ONLY for MarianTokenizer, which is pure Python.
+# It does not pull in torch unless a model is instantiated.
+transformers==4.54.1
+sentencepiece==0.2.0
+# MarianTokenizer falls back to a cruder split without this, which costs
+# translation quality on punctuation-heavy input.
+sacremoses==0.1.1
+
+# --- Voice activity detection ---
+# The `silero-vad` pip package hard-depends on torch + torchaudio, which would
+# pull ~2GB back into the runtime. We fetch the official silero_vad.onnx weights
+# in scripts/fetch_models.py and drive them with ONNX Runtime directly instead.
+onnxruntime==1.22.1
+
+# --- Audio capture ---
+sounddevice==0.5.2
+numpy==2.2.6
+
+# --- Local web server ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
