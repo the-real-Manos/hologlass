@@ -3,8 +3,15 @@
 Real-time speech translation for a heads-up display, running **entirely on your
 own machine**. Speak Spanish or French at it; English captions appear.
 
-This is stage one of a privacy-first alternative to cloud-backed smart glasses.
-It does one thing, and it does it without sending your voice anywhere.
+No cloud. No API keys. No account. Your voice never leaves the device, and
+nothing is written to disk.
+
+This is stage one of a privacy-first alternative to cloud-backed smart glasses:
+the software layer, built as a desktop simulation of the display. It does one
+thing, and it does it without sending your voice anywhere.
+
+Everything it runs on is open source — Whisper, OPUS-MT and Silero VAD, all under
+MIT or Apache-2.0. See [Built on](#built-on).
 
 > **Status:** working prototype, measured on a Ryzen 5 5600X, CPU only.
 > Response latency **~1.2 s**, real-time factor **0.10**. Accuracy is preferred
@@ -184,9 +191,31 @@ milliseconds and identically on every run.
 | `scripts/` | One-time model fetch and conversion. The only network access in the project. |
 | `tests/` | Deterministic tests against fake backends and recorded fixtures. |
 
+## Built on
+
+This project does no machine learning of its own. It orchestrates open models and
+runtimes built by others, and the credit for the hard parts belongs to them.
+
+| Component | Role | By | Licence |
+|---|---|---|---|
+| [Whisper](https://github.com/openai/whisper) | speech recognition | OpenAI | MIT |
+| [OPUS-MT](https://huggingface.co/Helsinki-NLP) | translation | University of Helsinki | Apache-2.0 |
+| [Silero VAD](https://github.com/snakers4/silero-vad) | voice activity detection | Silero Team | MIT |
+| [CTranslate2](https://github.com/OpenNMT/CTranslate2) | quantized inference runtime | OpenNMT | MIT |
+| [faster-whisper](https://github.com/SYSTRAN/faster-whisper) | Whisper on CTranslate2 | SYSTRAN | MIT |
+| [ONNX Runtime](https://github.com/microsoft/onnxruntime) | VAD inference | Microsoft | MIT |
+| [FastAPI](https://github.com/fastapi/fastapi) | server and WebSocket transport | Sebastián Ramírez | MIT |
+
+Every licence above was verified against the project's own repository or model
+card. Full attribution is in [NOTICE](NOTICE).
+
+Because all of them are permissive, the whole stack can run offline with no
+account, no key and no terms of service. That is what makes the privacy claim
+structural rather than a promise.
+
 ## Licence
 
-No licence has been granted. All rights are reserved by the author.
+Apache License 2.0. See [LICENSE](LICENSE).
 
-This means the code may be read, but not used, copied, modified or redistributed
-without permission. If you want to do any of those things, ask.
+You may use, modify and distribute this, including commercially, provided you
+preserve the copyright and licence notices and state any changes you made.

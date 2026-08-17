@@ -1,0 +1,65 @@
+Hologlass
+Copyright 2026 the-real-Manos
+
+Licensed under the Apache License, Version 2.0. See the LICENSE file for the
+full terms.
+
+================================================================================
+Third-party components
+================================================================================
+
+This project performs no machine learning of its own. It orchestrates models and
+runtimes built and released by others, all under permissive licences. Their
+authors deserve the credit for the parts that do the hard work.
+
+Models
+------
+
+Whisper (speech recognition)
+    OpenAI. MIT License.
+    Code and model weights: https://github.com/openai/whisper
+    Used here via pre-converted CTranslate2 weights published by SYSTRAN.
+
+OPUS-MT (machine translation)
+    Language Technology Research Group, University of Helsinki.
+    Apache License 2.0.
+    https://huggingface.co/Helsinki-NLP
+    Specifically opus-mt-es-en and opus-mt-fr-en, converted locally to
+    CTranslate2 by scripts/fetch_models.py.
+
+Silero VAD (voice activity detection)
+    Silero Team. MIT License.
+    https://github.com/snakers4/silero-vad
+    The ONNX graph is downloaded and run directly on ONNX Runtime.
+
+Runtimes and libraries
+----------------------
+
+CTranslate2                 OpenNMT.        MIT License.
+    https://github.com/OpenNMT/CTranslate2
+
+faster-whisper              SYSTRAN.        MIT License.
+    https://github.com/SYSTRAN/faster-whisper
+
+ONNX Runtime                Microsoft.      MIT License.
+    https://github.com/microsoft/onnxruntime
+
+Transformers                Hugging Face.   Apache License 2.0.
+    https://github.com/huggingface/transformers
+    Used only for the Marian tokenizer and for one-time model conversion.
+
+FastAPI                     Sebastián Ramírez. MIT License.
+    https://github.com/fastapi/fastapi
+
+Uvicorn                     Encode.         BSD 3-Clause License.
+    https://github.com/encode/uvicorn
+
+sounddevice                 Matthias Geier. MIT License.
+    https://github.com/spatialaudio/python-sounddevice
+
+NumPy                       NumPy Developers. BSD 3-Clause License.
+    https://github.com/numpy/numpy
+
+Licence identifiers above were verified against each project's own repository or
+model card. Full terms for every dependency are installed alongside it in the
+Python environment; consult those for the authoritative text.
